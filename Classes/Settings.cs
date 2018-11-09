@@ -239,6 +239,10 @@ namespace JDP {
             get { return "Debug"; }
         }
 
+		public static int WebServicePort {
+			get { return 1337; }
+		}
+
         public static ThreadDoubleClickAction? OnThreadDoubleClick {
             get {
                 int x = GetInt("OnThreadDoubleClick") ?? -1;

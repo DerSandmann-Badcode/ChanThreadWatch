@@ -22,6 +22,7 @@ namespace JDP {
         private static Dictionary<string, int> _categories = new Dictionary<string, int>();
         private static Dictionary<string, ThreadWatcher> _watchers = new Dictionary<string, ThreadWatcher>();
         private static HashSet<string> _blacklist = new HashSet<string>();
+		private static API _api = new API();
 
         public static int ConcurrentDownloads { get; set; }
 
@@ -97,7 +98,14 @@ namespace JDP {
                 CheckForUpdates();
             }
             niTrayIcon.Visible = Settings.MinimizeToTray ?? false;
+			_api.StartListener();
+			_api.NewThread += AddAPIThread;
         }
+
+		public void AddAPIThread(object sender, string e)
+		{
+			AddThread(e);
+		}
 
         public Dictionary<long, DownloadProgressInfo> DownloadProgresses {
             get { return _downloadProgresses; }
@@ -566,7 +574,7 @@ namespace JDP {
         }
         
         private void btnHelp_Click(object sender, EventArgs e) {
-            Process.Start(General.WikiURL);
+			Process.Start(General.WikiURL);
         }
 
         private void lvThreads_KeyDown(object sender, KeyEventArgs e) {
@@ -866,7 +874,7 @@ namespace JDP {
             return AddThread(thread);
         }
 
-        private bool AddThread(ThreadInfo thread) {
+		private bool AddThread(ThreadInfo thread) {
             ThreadWatcher watcher = null;
             ThreadWatcher parentThread = null;
             ListViewItem newListViewItem = null;
