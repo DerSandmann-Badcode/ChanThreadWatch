@@ -9,105 +9,103 @@ using System.Windows.Forms;
 using JDP.Properties;
 
 namespace JDP {
-    public partial class frmChanThreadWatch : Form {
-        private Dictionary<long, DownloadProgressInfo> _downloadProgresses = new Dictionary<long, DownloadProgressInfo>();
-        private frmDownloads _downloadForm;
-        private object _startupPromptSync = new object();
-        private bool _isExiting;
-        private bool _saveThreadList;
-        private int _itemAreaY;
-        private int[] _columnWidths;
-        private object _cboCheckEveryLastValue;
-        private bool _isLoadingThreadsFromFile;
-        private static Dictionary<string, int> _categories = new Dictionary<string, int>();
-        private static Dictionary<string, ThreadWatcher> _watchers = new Dictionary<string, ThreadWatcher>();
-        private static HashSet<string> _blacklist = new HashSet<string>();
+	public partial class frmChanThreadWatch : Form {
+		private Dictionary<long,DownloadProgressInfo> _downloadProgresses = new Dictionary<long,DownloadProgressInfo>();
+		private frmDownloads _downloadForm;
+		private object _startupPromptSync = new object();
+		private bool _isExiting;
+		private bool _saveThreadList;
+		private int _itemAreaY;
+		private int[] _columnWidths;
+		private object _cboCheckEveryLastValue;
+		private bool _isLoadingThreadsFromFile;
+		private static Dictionary<string,int> _categories = new Dictionary<string,int>();
+		private static Dictionary<string,ThreadWatcher> _watchers = new Dictionary<string,ThreadWatcher>();
+		private static HashSet<string> _blacklist = new HashSet<string>();
 		private static API _api = new API();
 
-        public static int ConcurrentDownloads { get; set; }
+		public static int ConcurrentDownloads { get; set; }
 
-        // ReleaseDate property and version in AssemblyInfo.cs should be updated for each release.
+		// ReleaseDate property and version in AssemblyInfo.cs should be updated for each release.
 
-        public frmChanThreadWatch() {
-            InitializeComponent();
-            Icon = Resources.ChanThreadWatchIcon;
-            niTrayIcon.Icon = Resources.ChanThreadWatchIcon;
-            Settings.Load();
-            string logPath = Path.Combine(Settings.GetSettingsDirectory(), Settings.LogFileName);
-            if (!File.Exists(logPath)) {
-                try { File.Create(logPath); }
-                catch { }
-            }
-            int initialWidth = ClientSize.Width;
-            GUI.SetFontAndScaling(this);
-            float scaleFactorX = (float)ClientSize.Width / initialWidth;
-            if (Settings.ClientSize != null) {
-                Size newSize = Settings.ClientSize.Value + Size - ClientSize;
-                if (newSize.Width >= MinimumSize.Width && newSize.Height >= MinimumSize.Height) {
-                    ClientSize = Settings.ClientSize.Value;
-                }
-            }
-            _columnWidths = new int[lvThreads.Columns.Count];
-            for (int iColumn = 0; iColumn < lvThreads.Columns.Count; iColumn++) {
-                ColumnHeader column = lvThreads.Columns[iColumn];
-                if (iColumn < Settings.ColumnWidths.Length) {
-                    column.Width = Settings.ColumnWidths[iColumn] > 0 ? Settings.ColumnWidths[iColumn] : 0;
-                }
-                else {
-                    column.Width = Convert.ToInt32(column.Width * scaleFactorX);
-                }
-                _columnWidths[iColumn] = column.Width != 0 ? column.Width : Settings.DefaultColumnWidths[iColumn];
-                if (iColumn < Settings.ColumnIndices.Length && Settings.ColumnIndices[iColumn] > 0 && Settings.ColumnIndices[iColumn] < lvThreads.Columns.Count) {
-                    column.DisplayIndex = Settings.ColumnIndices[iColumn];
-                }
-            }
-            GUI.EnableDoubleBuffering(lvThreads);
+		public frmChanThreadWatch() {
+			InitializeComponent();
+			Icon = Resources.ChanThreadWatchIcon;
+			niTrayIcon.Icon = Resources.ChanThreadWatchIcon;
+			Settings.Load();
+			string logPath = Path.Combine(Settings.GetSettingsDirectory(),Settings.LogFileName);
+			if(!File.Exists(logPath)) {
+				try { File.Create(logPath); } catch { }
+			}
+			int initialWidth = ClientSize.Width;
+			GUI.SetFontAndScaling(this);
+			float scaleFactorX = (float)ClientSize.Width / initialWidth;
+			if(Settings.ClientSize != null) {
+				Size newSize = Settings.ClientSize.Value + Size - ClientSize;
+				if(newSize.Width >= MinimumSize.Width && newSize.Height >= MinimumSize.Height) {
+					ClientSize = Settings.ClientSize.Value;
+				}
+			}
+			_columnWidths = new int[lvThreads.Columns.Count];
+			for(int iColumn = 0;iColumn < lvThreads.Columns.Count;iColumn++) {
+				ColumnHeader column = lvThreads.Columns[iColumn];
+				if(iColumn < Settings.ColumnWidths.Length) {
+					column.Width = Settings.ColumnWidths[iColumn] > 0 ? Settings.ColumnWidths[iColumn] : 0;
+				} else {
+					column.Width = Convert.ToInt32(column.Width * scaleFactorX);
+				}
+				_columnWidths[iColumn] = column.Width != 0 ? column.Width : Settings.DefaultColumnWidths[iColumn];
+				if(iColumn < Settings.ColumnIndices.Length && Settings.ColumnIndices[iColumn] > 0 && Settings.ColumnIndices[iColumn] < lvThreads.Columns.Count) {
+					column.DisplayIndex = Settings.ColumnIndices[iColumn];
+				}
+			}
+			GUI.EnableDoubleBuffering(lvThreads);
 
-            BindCheckEveryList();
-            BuildCheckEverySubMenu();
-            BuildColumnHeaderMenu();
+			BindCheckEveryList();
+			BuildCheckEverySubMenu();
+			BuildColumnHeaderMenu();
 
-            if ((Settings.DownloadFolder == null) || !Directory.Exists(Settings.AbsoluteDownloadDirectory)) {
-                Settings.DownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Watched Threads");
-                Settings.DownloadFolderIsRelative = false;
-            }
-            if (Settings.CheckEvery == 1) {
-                Settings.CheckEvery = 0;
-            }
+			if((Settings.DownloadFolder == null) || !Directory.Exists(Settings.AbsoluteDownloadDirectory)) {
+				Settings.DownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),"Watched Threads");
+				Settings.DownloadFolderIsRelative = false;
+			}
+			if(Settings.CheckEvery == 1) {
+				Settings.CheckEvery = 0;
+			}
 
-            chkPageAuth.Checked = Settings.UsePageAuth ?? false;
-            txtPageAuth.Text = Settings.PageAuth ?? String.Empty;
-            chkImageAuth.Checked = Settings.UseImageAuth ?? false;
-            txtImageAuth.Text = Settings.ImageAuth ?? String.Empty;
-            chkOneTime.Checked = Settings.OneTimeDownload ?? false;
-            chkAutoFollow.Checked = Settings.AutoFollow ?? false;
-            if (Settings.CheckEvery != null) {
-                foreach (ListItemInt32 item in cboCheckEvery.Items) {
-                    if (item.Value != Settings.CheckEvery) continue;
-                    cboCheckEvery.SelectedValue = Settings.CheckEvery;
-                    break;
-                }
-                if ((int)cboCheckEvery.SelectedValue != Settings.CheckEvery) txtCheckEvery.Text = Settings.CheckEvery.ToString();
-            }
-            else {
-                cboCheckEvery.SelectedValue = 3;
-            }
-            OnThreadDoubleClick = Settings.OnThreadDoubleClick ?? ThreadDoubleClickAction.OpenFolder;
+			chkPageAuth.Checked = Settings.UsePageAuth ?? false;
+			txtPageAuth.Text = Settings.PageAuth ?? String.Empty;
+			chkImageAuth.Checked = Settings.UseImageAuth ?? false;
+			txtImageAuth.Text = Settings.ImageAuth ?? String.Empty;
+			chkOneTime.Checked = Settings.OneTimeDownload ?? false;
+			chkAutoFollow.Checked = Settings.AutoFollow ?? false;
+			if(Settings.CheckEvery != null) {
+				foreach(ListItemInt32 item in cboCheckEvery.Items) {
+					if(item.Value != Settings.CheckEvery) continue;
+					cboCheckEvery.SelectedValue = Settings.CheckEvery;
+					break;
+				}
+				if((int)cboCheckEvery.SelectedValue != Settings.CheckEvery) txtCheckEvery.Text = Settings.CheckEvery.ToString();
+			} else {
+				cboCheckEvery.SelectedValue = 3;
+			}
+			OnThreadDoubleClick = Settings.OnThreadDoubleClick ?? ThreadDoubleClickAction.OpenFolder;
 
-            if ((Settings.CheckForUpdates == true) && (Settings.LastUpdateCheck ?? DateTime.MinValue) < DateTime.Now.Date) {
-                CheckForUpdates();
-            }
-            niTrayIcon.Visible = Settings.MinimizeToTray ?? false;
+			if((Settings.CheckForUpdates == true) && (Settings.LastUpdateCheck ?? DateTime.MinValue) < DateTime.Now.Date) {
+				CheckForUpdates();
+			}
+			niTrayIcon.Visible = Settings.MinimizeToTray ?? false;
 			_api.StartListener();
 			_api.NewThread += AddAPIThread;
-        }
+		}
 
-		public void AddAPIThread(object sender, string e)
-		{
+		public void AddAPIThread(object sender,string e) {
 			AddThread(e);
 		}
 
-        public Dictionary<long, DownloadProgressInfo> DownloadProgresses {
+
+
+		public Dictionary<long, DownloadProgressInfo> DownloadProgresses {
             get { return _downloadProgresses; }
         }
 
