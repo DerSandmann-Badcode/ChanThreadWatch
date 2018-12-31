@@ -737,7 +737,7 @@ namespace JDP {
             MaximumBytesPerSecond = Settings.MaximumBytesPerSecond ?? Infinite;
 
             _byteCount += bufferSizeInBytes;
-            long weightedMaximumBytesPerSecond = _maximumBytesPerSecond / frmChanThreadWatch.ConcurrentDownloads;
+            long weightedMaximumBytesPerSecond = frmChanThreadWatch.ConcurrentDownloads == 0 ? _maximumBytesPerSecond : _maximumBytesPerSecond / frmChanThreadWatch.ConcurrentDownloads;
             long elapsedMilliseconds = CurrentMilliseconds - _start;
 
             if (elapsedMilliseconds > 0) {
